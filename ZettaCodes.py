@@ -62,6 +62,8 @@ def Edit(code):
         return "External App Insert"
     elif code == 209:
         return "User Resolved"
+    elif code == 213:
+        return "User Juggle"
     elif code == 220:
         return "Mini-Log - Insert By User"
     elif code == 221:

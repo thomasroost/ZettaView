@@ -1,33 +1,32 @@
 """ ZettaView: A simple HTML Log/Sequencer viewer for RCS Zetta """
 
-__product__             = "ZettaView"
-__version__             = "1.0.0"
-__author__              = "Anthony Eden"
-__copyright__           = "Copyright 2018, Media Realm"
-__url__                 = "https://mediarealm.com.au/"
+__product__ = "ZettaView"
+__version__ = "1.0.1"
+__author__ = "Anthony Eden"
+__copyright__ = "Copyright 2018, Media Realm"
+__url__ = "https://mediarealm.com.au/"
 
-import sys, os
+import sys
+import os
 sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/libs")
 
-from flask import Flask
-from flask import render_template
-from flask import jsonify
-
+from flask import Flask, render_template, jsonify
 import ZettaStatusFeed
-
 import datetime
 import time
 import json
-
+import sys
+import os
 
 base_dir = '.'
 if hasattr(sys, '_MEIPASS'):
     base_dir = os.path.join(sys._MEIPASS)
+
 template_folder = os.path.join(base_dir, 'templates')
 static_folder = os.path.join(base_dir, 'static')
 
-app = Flask(__name__, template_folder = template_folder, static_folder = static_folder)
-
+app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
+app.stations = {}
 
 class DateTimeEncoder(json.JSONEncoder):
     # From https://stackoverflow.com/a/27058505
@@ -36,22 +35,21 @@ class DateTimeEncoder(json.JSONEncoder):
             return o.isoformat()
 
         return json.JSONEncoder.default(self, o)
+    
+with app.app_context():
+    def connect_statusfeed():
+        # Connect to the status feed
+        ZettaStatusFeed.connect(CONFIG['ZettaServer'])
 
-@app.before_first_request
-def connect_statusfeed():
-    # Connect to the status feed
-    ZettaStatusFeed.connect(CONFIG['ZettaServer'])
-
-@app.before_first_request
-def get_stations():
-    app.stations = ZettaStatusFeed.listStations()
-    for station, stationData in enumerate(app.stations):
-        app.stations[station]['Data'] = {}
-        app.stations[station]['DataLastUpdated'] = 0
-        app.stations[station]['gapTimeLastValue'] = 0
-        app.stations[station]['gapTimeCountdownTarget'] = None
-        app.stations[station]['gapTimeCountdownTargetFormatted'] = None
-
+    def get_stations():
+        app.stations = ZettaStatusFeed.listStations()
+        for station, stationData in enumerate(app.stations):
+            app.stations[station]['Data'] = {}
+            app.stations[station]['DataLastUpdated'] = 0
+            app.stations[station]['gapTimeLastValue'] = 0
+            app.stations[station]['gapTimeCountdownTarget'] = None
+            app.stations[station]['gapTimeCountdownTargetFormatted'] = None
+        
 @app.route('/')
 def view_stations():
     # Get a list of stations and render a list as HTML
@@ -104,15 +102,15 @@ def data_station(station_id=None):
         etm = None
 
     if station['gapTimeLastValue'] != timingData['GapTimeInSeconds'] and timingData['GapTimeInSeconds'] is not None:
-        print "Update gap time"
+        print("Update gap time")
         app.stations[station_index]['gapTimeLastValue'] = timingData['GapTimeInSeconds']
-        app.stations[station_index]['gapTimeCountdownTarget'] = datetime.datetime.now() - datetime.timedelta(seconds = timingData['GapTimeInSeconds'])
+        app.stations[station_index]['gapTimeCountdownTarget'] = datetime.datetime.now() - datetime.timedelta(seconds=timingData['GapTimeInSeconds'])
         app.stations[station_index]['gapTimeCountdownTargetFormatted'] = app.stations[station_index]['gapTimeCountdownTarget'].strftime("%Y-%m-%d %H:%M:%S")
 
     eventQueue = ZettaStatusFeed.stationQueue(station_id)
     currentEvent = eventQueue[0]['Event']
     currentEventId = currentEvent['EventID']
-    
+
     data = {
         "station_id": station_id,
         "stationName": station['Station']['Name'],
@@ -123,11 +121,11 @@ def data_station(station_id=None):
         "gapTimeCountdownTarget": station['gapTimeCountdownTargetFormatted'],
         "etm": etm,
         "eventQueue": eventQueue,
-        }
-    
+    }
+
     station['DataLastUpdated'] = time.time()
     station['Data'] = data
-    
+
     return app.response_class(
         response=json.dumps(data, cls=DateTimeEncoder),
         status=200,
@@ -146,7 +144,11 @@ if __name__ == '__main__':
     try:
         Config_JSON = open(config_filename).read()
         CONFIG = json.loads(Config_JSON)
-    except Exception, e:
-        print "ERROR LOADING CONFIG.JSON:", e
+        connect_statusfeed()
+        get_stations()
+    except Exception as e:
+        print("ERROR LOADING CONFIG.JSON:", e)
     else:
-        app.run(host = '0.0.0.0', port = CONFIG['LocalPortNumber'])
+        from waitress import serve
+        serve(app, host="0.0.0.0", port=CONFIG['LocalPortNumber'])
+        # app.run(host='0.0.0.0', port=CONFIG['LocalPortNumber'])

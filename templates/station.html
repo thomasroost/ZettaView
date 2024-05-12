@@ -148,6 +148,8 @@
                     a = station.etm.split(/[^0-9]/);
                     etmLocal = new Date(a[0], a[1]-1, a[2], a[3], a[4], a[5]);
                     $("#station_etm").html(formatTimestamp(etmLocal));
+                } else {
+                    $("#station_etm").html("N/A");
                 }
 
                 if(station.status == "ON-AIR") {
@@ -213,6 +215,11 @@
                             <span class="chain chain_'+eventData.ChainType+'"></span>\
                             <span class="timer timer-countdown" data-endTime="'+endTime+'">'+timeDisplay+'</span>\
                         </div>');
+                    
+                    // Show only 16 first elements to avoid page break (Zetta API issue)
+                    if (i > 16){
+                        break
+                    }
                 }
 
                 $("#log").html($("#log2").html());

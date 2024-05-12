@@ -7,8 +7,16 @@ Ensure you have 32-bit Python 2.7 installed
 Delete build/ & dist/
 
 Run:
- - pyinstaller -p libs --onefile --add-data "templates;templates" --add-data "static;static" --version-file=version.py app.py
+ - pyinstaller -p libs --onefile --add-data "templates;templates" --add-data "static;static" --version-file=version.py ZettaView.py
 
 Copy config-sample.json to dist/
 
 ZIP up the dist/ folder and distribute as needed
+
+
+Windows :
+1. pip install flask
+2. pip install waitress
+3. pip install pyinstaller 
+4. pyinstaller -p libs --onefile --add-data "templates;templates" --add-data "static;static" --version-file=version.py ZettaView.py
+5. Copy config-sample.json to dist as config.json
